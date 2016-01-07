@@ -1,78 +1,95 @@
-int s0=3, s1=4, s2=5, s3=6;
-int out=2;
-int flag=0;
+/**
+ * 
+ * tcs230.ino
+ * 
+ * @author Jose Patricio Hijuitl <patriciohc.0@gmail.com>
+ */
 
-byte counter=0;
-byte countR=0, countG=0, countB=0;
+#include <TimerOne.h>
+#include <LiquidCrystal.h>
 
-void setup()
-{
-	Serial.begin(115200);
-	pinMode(s0, OUTPUT);
-	pinMode(s1, OUTPUT);
-	pinMode(s2, OUTPUT);
-	pinMode(s3, OUTPUT);  
+#include "ColorRecognition.h"
+#include "ColorRecognitionTCS230.h"
+#include "rgb_to_hsv.c"
+
+/*
+#define R 0
+#define G 1
+#define B 2
+*/
+int RGB[3] = {0,0,0};
+ColorRecognitionTCS230* tcs230;
+
+void setup() {
+	Serial.begin(9600);
+	tcs230 = ColorRecognitionTCS230::getInstance();
+	tcs230->initialize(2, 3, 4);
+	LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+	LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
+	lcd.begin(16, 2);
+
+//debug
+/*	Serial.print("Ajust. blanco...");
+	Serial.print("Coloque blanco..");
+	Serial.print("Durante 5 sec.");
+*/
+	lcd.print("Ajust. white...");
+	lcd.setCursor(0, 1);
+	lcd.print("Show white..");
+	lcd.setCursor(0, 1);
+	lcd.print("During 5 sec.");
+	Show something white to it during 4 seconds.
+	tcs230->adjustWhiteBalance();
 }
 
-void TCS()
-{
-	flag=0;
-	digitalWrite(s1, HIGH);
-	digitalWrite(s0, HIGH);
-	digitalWrite(s2, LOW);
-	digitalWrite(s3, LOW);
-	attachInterrupt(0, ISR_INTO, LOW);
-	timer0_init();
-}
-
-void ISR_INTO()
-{
-	counter++;
-}
-
-void timer0_init(void)
-{
-	TCCR2A = 0x00;
-	TCCR2B = 0x07; //the clock frequency source 1024 points
-	TCNT2 = 100;  //10 ms overflow again
-	TIMSK2 = 0x01; //allow interrupt
-}
-
-int i=0;
-
-/*the timer 2, 10ms interrupt overflow again. Internal overflow interrupt 
-executive function*/
-ISR(TIMER2_OVF_vect)
-{
-	TCNT2=100;
-	flag++;
-	if (flag==1) {
-		countR=counter;
-		Serial.print("red=");
-		Serial.println(countR,DEC);
-		digitalWrite(s2,HIGH);
-		digitalWrite(s3,HIGH);
-	} else if (flag==2) {
-		countG=counter;
-		Serial.print("green=");
-		Serial.println(countG,DEC);
-		digitalWrite(s2,LOW);
-		digitalWrite(s3,HIGH);
-	} else if (flag==3) {
-		countB=counter; //Future Electronics Egypt Ltd. (Arduino Egypt).
-		Serial.print("blue=");
-		Serial.println(countB,DEC);
-		Serial.println("\n"); 
-		digitalWrite(s2,LOW);
-		digitalWrite(s3,LOW);
-	} else if (flag==4) {
-		flag=0;
+/*
+toma 10 lecturas de rgb y retorna el promedio
+*/
+void avg(){
+	RGB[RED]= 0;
+	RGB[GREEN]= 0;
+	RGB[BLUE]= 0;
+	delay(2000);
+	for(int i = 0; i<10; i++){
+		delay(500);
+		RGB[RED] += tcs230->getRed();
+		RGB[GREEN] += tcs230->getGreen();
+		RGB[BLUE] += tcs230->getBlue();
 	}
-	counter=0;
+	RGB[RED] /= 10;
+	RGB[GREEN] /= 10;
+	RGB[BLUE] /= 10;
 }
 
-void loop()
-{
-	TCS();
-	while (1);
+void loop() {
+	int H;
+	float S,V;
+	lcd.setCursor(0, 1);
+	delay(3000);
+	avg();
+	RGB_to_HSV(RGB, &H, &S, &V);
+	if (H < 65 && V > 70){
+		lcd.print("add solution");
+	}else if(H < 68 && V < 65){
+		lcd.print("perfect");
+	}else{
+		lcd.print("change solution")
+	}
+/*
+	Serial.print("H = ");
+	Serial.println(H);
+	Serial.print("S = ");
+	Serial.println(S);
+	Serial.print("V = ");
+	Serial.println(V);
+	Serial.println("-------------------");
+	Serial.print("Red: ");
+	Serial.println(tcs230->getRed());
+	Serial.print("Green: ");
+	Serial.println(tcs230->getGreen());
+	Serial.print("Blue ");
+	Serial.println(tcs230->getBlue());
+	Serial.println("-------------------");
+	delay(3000);*/
+
 }
